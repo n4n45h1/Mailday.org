@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <meta name="description" content="秘密鍵を端末から出さない、一時メールボックス。">
+    <title>Mailday / Private inbox</title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/">MAILDAY<span>/</span></a>
+      <div class="header-side"><p>PRIVATE BY DESIGN / ENCRYPTED BY DEFAULT</p><button id="language" class="language" type="button">EN</button></div>
+    </header>
+
+    <main>
+      <section id="landing" class="landing">
+        <div class="eyebrow"><span></span> ZERO-ACCESS MAILBOX</div>
+        <h1 data-i18n-html="hero">メールの中身は、<br><i>あなただけのもの。</i></h1>
+        <p class="lead" data-i18n="lead">受信した瞬間に暗号化し、復号はこの端末だけで行います。運営者にも本文を読むための鍵はありません。</p>
+        <form id="create-form" class="create-form">
+          <div class="field address-field">
+            <label for="local-part" data-i18n="addressLabel">CUSTOM ADDRESS（任意）</label>
+            <div class="address-input"><input id="local-part" maxlength="32" pattern="[a-zA-Z0-9][a-zA-Z0-9._-]{1,30}[a-zA-Z0-9]" autocomplete="off" spellcheck="false" placeholder="ランダム生成"><span>@mailday.org</span></div>
+          </div>
+          <div class="field">
+            <label for="expires-in" data-i18n="expiryLabel">有効期限</label>
+            <select id="expires-in">
+              <option value="1h" data-i18n="oneHour">1時間</option>
+              <option value="1d" data-i18n="oneDay">1日</option>
+              <option value="7d" data-i18n="oneWeek" selected>1週間</option>
+              <option value="forever" data-i18n="forever">永久</option>
+            </select>
+          </div>
+          <fieldset>
+            <legend data-i18n="encryptionLabel">暗号化の強さ</legend>
+            <label class="mode"><input type="radio" name="encryption" value="none"><span><b data-i18n="none">なし</b><small data-i18n="noneHelp">高速。運営者からも本文を読めます</small></span></label>
+            <label class="mode"><input type="radio" name="encryption" value="standard" checked><span><b data-i18n="standard">標準</b><small data-i18n="standardHelp">X25519 + XChaCha20。推奨設定</small></span></label>
+            <label class="mode"><input type="radio" name="encryption" value="strong"><span><b data-i18n="strong">強力</b><small data-i18n="strongHelp">X-Wing耐量子ハイブリッド暗号</small></span></label>
+          </fieldset>
+          <div id="encryption-warning" class="warning hidden" data-i18n="noneWarning">「なし」ではメール本文が平文で保存され、zero-accessではなくなります。</div>
+          <div id="strong-password-field" class="field password-field hidden">
+            <label for="strong-password" data-i18n="passwordLabel">RECOVERY PASSPHRASE</label>
+            <input id="strong-password" type="password" minlength="12" autocomplete="new-password" placeholder="12文字以上">
+            <small data-i18n="passwordHelp">強力モードの秘密鍵をArgon2idで保護します。パスフレーズはサーバーへ送信されません。</small>
+          </div>
+          <button id="create" class="primary" type="submit" data-i18n="create">この設定で Inbox を作る</button>
+        </form>
+        <button id="show-import" class="import-link" type="button" data-i18n="import">Recovery Key で既存Inboxを開く</button>
+        <form id="import-form" class="import hidden">
+          <label for="recovery">RECOVERY KEY</label>
+          <textarea id="recovery" rows="4" spellcheck="false" autocomplete="off" placeholder="md1_..."></textarea>
+          <label for="recovery-password" data-i18n="importPasswordLabel">PASSPHRASE（強力モードのみ）</label>
+          <input id="recovery-password" type="password" autocomplete="current-password">
+          <button class="primary" type="submit" data-i18n="restore">Inbox を復元</button>
+        </form>
+        <div class="principles">
+          <article><b>01 / IDENTITY</b><h2 data-i18n="identityTitle">アカウントを作らない</h2><p data-i18n="identityText">ユーザーテーブルを持たず、Inbox 同士も関連付けません。</p></article>
+          <article><b>02 / STORAGE</b><h2 data-i18n="storageTitle">暗号文だけを保存</h2><p data-i18n="storageText">標準・強力モードではraw MIME全体を入口で暗号化します。</p></article>
+          <article><b>03 / RETENTION</b><h2 data-i18n="retentionTitle">残す期間を選べる</h2><p data-i18n="retentionText">1時間から永久まで。期限後はメールとInboxを削除します。</p></article>
+        </div>
+      </section>
+
+      <section id="recovery-panel" class="modal hidden" aria-live="polite">
+        <div class="modal-card">
+          <span class="eyebrow">ONE-TIME DISPLAY</span>
+          <h2 data-i18n="saveRecovery">Recovery Key を保管</h2>
+          <p data-i18n="recoveryHelp">別端末で Inbox を開く唯一の鍵です。再発行はできません。</p>
+          <textarea id="new-recovery" rows="5" readonly></textarea>
+          <button id="copy-recovery" class="secondary" data-i18n="copyRecovery">Recovery Key をコピー</button>
+          <label class="confirm"><input id="saved-key" type="checkbox"> <span data-i18n="saved">安全な場所に保管しました</span></label>
+          <button id="open-created" class="primary" disabled data-i18n="openInbox">Inbox を開く</button>
+        </div>
+      </section>
+
+      <section id="inbox" class="inbox hidden">
+        <div class="inbox-head">
+          <div><span class="eyebrow">ENCRYPTED INBOX</span><h1 id="address">...</h1></div>
+          <div class="actions"><button id="copy-address" class="secondary" data-i18n="copyAddress">アドレスをコピー</button><button id="lock" class="quiet" data-i18n="close">閉じる</button></div>
+        </div>
+        <p id="expiry" class="expiry"></p>
+        <div id="status" class="status">受信メールを確認しています...</div>
+        <div id="messages" class="messages"></div>
+      </section>
+    </main>
+
+    <footer><span>MAILDAY.ORG</span><span>PLAIN TEXT NEVER RESTS HERE.</span></footer>
+  </body>
+</html>

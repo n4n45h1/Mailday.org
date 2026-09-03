@@ -1,0 +1,44 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mailday",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "mailday.org",
+      "custom_domain": true
+    }
+  ],
+  "observability": {
+    "enabled": false
+  },
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mailday-db",
+      "database_id": "3ad1effb-f4f9-4759-912b-26ac5a9917fb",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MAIL",
+      "bucket_name": "mailday-encrypted-mail"
+    }
+  ],
+  "vars": {
+    "MAIL_DOMAIN": "mailday.org",
+    "MAILBOX_TTL_DAYS": "30",
+    "MESSAGE_TTL_DAYS": "7"
+  },
+  "triggers": {
+    "crons": ["17 * * * *"]
+  }
+}

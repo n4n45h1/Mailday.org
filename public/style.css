@@ -1,0 +1,115 @@
+:root {
+  --ink: #12221d;
+  --paper: #f8faf7;
+  --white: #ffffff;
+  --secure: #087a55;
+  --secure-dark: #075c43;
+  --wash: #edf5f0;
+  --muted: #607069;
+  --line: #d5dfd9;
+}
+
+* { box-sizing: border-box; }
+html { background: var(--paper); color: var(--ink); font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+body { margin: 0; min-height: 100vh; background: linear-gradient(90deg, transparent 49.95%, rgba(8,122,85,.035) 50%, transparent 50.05%), var(--paper); }
+button, textarea { font: inherit; }
+button { cursor: pointer; }
+header, footer { display: flex; justify-content: space-between; align-items: center; padding: 22px max(24px, 4vw); border-bottom: 1px solid var(--line); background: rgba(255,255,255,.76); }
+header p, footer { margin: 0; color: var(--muted); font: 700 10px/1.2 ui-monospace, monospace; letter-spacing: .15em; }
+.header-side { display: flex; align-items: center; gap: 22px; }
+.language { min-width: 46px; padding: 8px 10px; color: var(--secure); font: 800 10px ui-monospace, monospace; }
+.brand { display: flex; align-items: center; gap: 9px; color: var(--ink); text-decoration: none; font: 800 19px/1 Arial, sans-serif; letter-spacing: -.04em; }
+.brand::before { content: ""; width: 19px; height: 22px; background: var(--secure); clip-path: polygon(50% 0, 95% 17%, 88% 69%, 50% 100%, 12% 69%, 5% 17%); }
+.brand span, h1 i { color: var(--secure); font-style: normal; }
+main { width: min(1180px, 92vw); margin: 0 auto; }
+.landing { padding: clamp(76px, 10vw, 140px) 0 76px; }
+.eyebrow { display: flex; align-items: center; gap: 9px; color: var(--secure); font: 750 10px/1 ui-monospace, monospace; letter-spacing: .16em; margin-bottom: 27px; }
+.eyebrow span { width: 8px; height: 8px; border-radius: 50%; background: var(--secure); box-shadow: 0 0 0 5px rgba(8,122,85,.1); }
+h1 { max-width: 1040px; margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(48px, 7.7vw, 102px); font-weight: 400; line-height: .98; letter-spacing: -.055em; }
+.lead { max-width: 650px; margin: 35px 0; color: var(--muted); font-size: clamp(16px, 1.7vw, 20px); line-height: 1.85; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+button { border: 1px solid var(--line); border-radius: 4px; padding: 14px 19px; color: var(--ink); background: var(--white); font-weight: 700; transition: border-color .15s, background .15s, transform .15s; }
+button:hover { border-color: var(--secure); transform: translateY(-1px); }
+button:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.primary { border-color: var(--secure); color: white; background: var(--secure); box-shadow: 0 6px 20px rgba(8,122,85,.13); }
+.primary:hover { background: var(--secure-dark); }
+.secondary { background: var(--white); }
+.quiet { color: var(--muted); }
+.create-form { display: grid; grid-template-columns: minmax(270px, 1fr) 190px; gap: 18px; max-width: 820px; margin-top: 42px; padding: 27px; border: 1px solid var(--line); border-radius: 6px; background: var(--white); box-shadow: 0 14px 50px rgba(24,55,43,.045); }
+.field label, fieldset legend { margin-bottom: 11px; color: var(--muted); font: 700 10px ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; }
+input, select { width: 100%; min-height: 48px; border: 1px solid var(--line); border-radius: 3px; padding: 0 13px; color: var(--ink); background: #fbfdfb; font: inherit; font-size: 14px; }
+input:focus, select:focus { outline: 2px solid rgba(8,122,85,.18); border-color: var(--secure); }
+.address-input { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 3px; background: #fbfdfb; }
+.address-input:focus-within { outline: 2px solid rgba(8,122,85,.18); border-color: var(--secure); }
+.address-input input { min-width: 100px; border: 0; outline: 0; background: transparent; }
+.address-input span { padding-right: 13px; color: var(--muted); font-size: 13px; }
+fieldset { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 2px 0 0; padding: 0; border: 0; }
+fieldset legend { padding: 0 0 11px; }
+.mode { position: relative; margin: 0; cursor: pointer; }
+.mode input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.mode span { display: block; min-height: 92px; padding: 16px; border: 1px solid var(--line); border-radius: 4px; transition: border-color .15s, background .15s; }
+.mode input:checked + span { border-color: var(--secure); background: var(--wash); box-shadow: inset 0 0 0 1px var(--secure); }
+.mode b { display: block; margin-bottom: 9px; color: var(--ink); font-size: 14px; }
+.mode small { display: block; color: var(--muted); font: 11px/1.5 ui-monospace, monospace; }
+.warning { grid-column: 1 / -1; padding: 12px 14px; border-left: 3px solid #b66a22; color: #784718; background: #fff7ed; font-size: 12px; line-height: 1.6; }
+.password-field { grid-column: 1 / -1; padding: 17px; border: 1px solid var(--secure); border-radius: 4px; background: var(--wash); }
+.password-field small { display: block; margin-top: 9px; color: var(--muted); font: 11px/1.55 ui-monospace, monospace; }
+.create-form > .primary { grid-column: 1 / -1; justify-self: start; }
+.import-link { margin-top: 14px; padding-left: 0; border: 0; color: var(--secure); background: transparent; font-size: 13px; text-decoration: underline; text-underline-offset: 4px; }
+.principles { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 105px; border: 1px solid var(--line); border-radius: 6px; background: var(--white); box-shadow: 0 14px 50px rgba(24,55,43,.045); }
+.principles article { min-height: 225px; padding: 27px 30px; border-right: 1px solid var(--line); }
+.principles article:last-child { border-right: 0; }
+.principles b { color: var(--secure); font: 700 9px ui-monospace, monospace; letter-spacing: .12em; }
+.principles h2 { margin: 54px 0 13px; font: 600 21px/1.2 Georgia, serif; }
+.principles p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.7; }
+.import { max-width: 680px; margin-top: 38px; padding: 25px; border: 1px solid var(--line); border-radius: 5px; background: var(--white); }
+.import input { margin-bottom: 18px; }
+label { display: block; margin-bottom: 10px; color: var(--muted); font: 700 10px ui-monospace, monospace; letter-spacing: .12em; }
+textarea { width: 100%; resize: vertical; margin-bottom: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 3px; background: #fbfdfb; color: var(--ink); font: 12px/1.5 ui-monospace, monospace; }
+textarea:focus { outline: 2px solid rgba(8,122,85,.18); border-color: var(--secure); }
+.hidden { display: none !important; }
+.modal { position: fixed; z-index: 3; inset: 0; display: grid; place-items: center; padding: 20px; background: rgba(18,34,29,.68); backdrop-filter: blur(5px); }
+.modal-card { width: min(620px, 100%); padding: clamp(26px, 5vw, 54px); border: 1px solid var(--line); border-top: 4px solid var(--secure); border-radius: 5px; background: var(--white); box-shadow: 0 25px 80px rgba(5,45,31,.2); }
+.modal h2 { margin: 0; font: 400 38px Georgia, serif; }
+.modal p { color: var(--muted); line-height: 1.7; }
+.confirm { margin: 24px 0; color: var(--ink); font-family: inherit; font-size: 14px; letter-spacing: 0; }
+.inbox { padding: 68px 0 100px; }
+.inbox-head { display: flex; justify-content: space-between; align-items: end; gap: 30px; border-bottom: 1px solid var(--line); padding-bottom: 29px; }
+.inbox h1 { overflow-wrap: anywhere; font-size: clamp(34px, 5vw, 66px); line-height: 1; }
+.expiry, .status { color: var(--muted); font: 11px/1.7 ui-monospace, monospace; }
+.expiry { margin: 18px 0 45px; }
+.status { padding: 26px 0; }
+.messages { border-bottom: 1px solid var(--line); }
+.message { border-top: 1px solid var(--line); background: rgba(255,255,255,.75); }
+.message summary { display: grid; grid-template-columns: 24px 1fr auto auto; align-items: center; gap: 20px; padding: 22px 13px; cursor: pointer; list-style: none; }
+.message summary::before { content: "+"; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: var(--secure); background: var(--wash); }
+.message summary span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.message summary time, .message summary small { color: var(--muted); font: 10px ui-monospace, monospace; }
+.message-body { padding: 10px 13px 30px 57px; }
+.message-body pre { max-height: 520px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 24px; border: 1px solid var(--line); background: #fbfdfb; color: #30433b; font: 12px/1.65 ui-monospace, monospace; }
+.mail-content { max-width: 820px; padding: 24px; border: 1px solid var(--line); border-radius: 3px; background: var(--white); color: #202a26; line-height: 1.65; overflow-wrap: anywhere; }
+.mail-content img { max-width: 100%; height: auto; }
+.mail-content a { color: var(--secure-dark); }
+.mail-meta { color: var(--muted); line-height: 1.6; }
+.attachments { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.attachment { display: inline-block; padding: 9px 12px; border: 1px solid var(--line); border-radius: 3px; color: var(--secure-dark); background: var(--wash); font-size: 12px; text-decoration: none; }
+.message-body button { padding: 8px 12px; color: #a53131; }
+footer { border-top: 1px solid var(--line); border-bottom: 0; background: var(--white); }
+
+@media (max-width: 700px) {
+  header p, footer span:last-child { display: none; }
+  .header-side { gap: 0; }
+  main { width: min(90vw, 1180px); }
+  .principles { grid-template-columns: 1fr; margin-top: 68px; }
+  .principles article { min-height: 0; padding: 25px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .principles article:last-child { border-bottom: 0; }
+  .principles h2 { margin-top: 25px; }
+  .inbox-head { align-items: start; flex-direction: column; }
+  .create-form { grid-template-columns: 1fr; padding: 20px; }
+  .create-form .field, fieldset, .warning, .create-form > .primary { grid-column: 1; }
+  fieldset { grid-template-columns: 1fr; }
+  .mode span { min-height: 0; }
+  .message summary { grid-template-columns: 22px 1fr; gap: 11px; }
+  .message summary time, .message summary small { grid-column: 2; }
+  .message-body { padding-left: 13px; }
+}

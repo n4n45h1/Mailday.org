@@ -1,0 +1,29 @@
+{
+  "name": "mailday",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "esbuild client/app.js --bundle --minify --outfile=public/app.js",
+    "dev": "wrangler dev",
+    "deploy": "npm run build && wrangler deploy",
+    "test:integration": "node scripts/crypto-smoke.mjs",
+    "typecheck": "tsc --noEmit",
+    "db:migrate:local": "wrangler d1 migrations apply mailday-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply mailday-db --remote"
+  },
+  "dependencies": {
+    "@noble/ciphers": "^2.4.0",
+    "@noble/curves": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
+    "@noble/post-quantum": "^0.7.1",
+    "dompurify": "^3.2.6",
+    "hash-wasm": "^4.12.0",
+    "postal-mime": "^2.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260903.1",
+    "esbuild": "^0.25.9",
+    "typescript": "^5.9.2",
+    "wrangler": "^4.128.0"
+  }
+}
