@@ -41,18 +41,18 @@
             <label class="mode"><input type="radio" name="encryption" value="strong"><span><b data-i18n="strong">強力</b><small data-i18n="strongHelp">X-Wing耐量子ハイブリッド暗号</small></span></label>
           </fieldset>
           <div id="encryption-warning" class="warning hidden" data-i18n="noneWarning">「なし」ではメール本文が平文で保存され、zero-accessではなくなります。</div>
-          <div id="strong-password-field" class="field password-field hidden">
+          <div id="strong-password-field" class="field password-field">
             <label for="strong-password" data-i18n="passwordLabel">RECOVERY PASSPHRASE</label>
-            <input id="strong-password" type="password" minlength="12" autocomplete="new-password" placeholder="12文字以上">
-            <small data-i18n="passwordHelp">強力モードの秘密鍵をArgon2idで保護します。パスフレーズはサーバーへ送信されません。</small>
+            <input id="strong-password" type="password" minlength="12" autocomplete="new-password" placeholder="12文字以上" required>
+            <small data-i18n="passwordHelp">暗号化Inboxの秘密鍵をArgon2idで保護します。パスフレーズはサーバーへ送信されません。</small>
           </div>
           <button id="create" class="primary" type="submit" data-i18n="create">この設定で Inbox を作る</button>
         </form>
         <button id="show-import" class="import-link" type="button" data-i18n="import">Recovery Key で既存Inboxを開く</button>
         <form id="import-form" class="import hidden">
           <label for="recovery">RECOVERY KEY</label>
-          <textarea id="recovery" rows="4" spellcheck="false" autocomplete="off" placeholder="md1_..."></textarea>
-          <label for="recovery-password" data-i18n="importPasswordLabel">PASSPHRASE（強力モードのみ）</label>
+          <textarea id="recovery" rows="4" spellcheck="false" autocomplete="off" placeholder="md3_..."></textarea>
+          <label for="recovery-password" data-i18n="importPasswordLabel">PASSPHRASE</label>
           <input id="recovery-password" type="password" autocomplete="current-password">
           <button class="primary" type="submit" data-i18n="restore">Inbox を復元</button>
         </form>
