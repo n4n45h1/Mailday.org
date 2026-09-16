@@ -44,6 +44,8 @@ interface MessageRow {
 
 const encoder = new TextEncoder();
 const MAX_MAIL_BYTES = 25 * 1024 * 1024;
+const CLEANUP_BATCH_SIZE = 100;
+const CLEANUP_MAX_BATCHES = 10;
 const JSON_HEADERS = { "content-type": "application/json; charset=utf-8" };
 
 function json(data: unknown, status = 200): Response {
@@ -106,6 +108,13 @@ async function readJson(request: Request): Promise<Record<string, unknown> | nul
   }
 }
 
+function validLocalPart(value: string): boolean {
+  if (value.length < 3 || value.length > 32) return false;
+  if (!/^[a-z0-9][a-z0-9._-]*[a-z0-9]$/.test(value)) return false;
+  if (value.includes("..")) return false;
+  return true;
+}
+
 async function createMailbox(request: Request, env: Env): Promise<Response> {
   const body = await readJson(request);
   const encryptionMode = body?.encryptionMode;
@@ -128,7 +137,7 @@ async function createMailbox(request: Request, env: Env): Promise<Response> {
   const now = Date.now();
   const mailboxId = randomId();
   const requestedLocalPart = typeof body?.localPart === "string" ? body.localPart.trim().toLowerCase() : "";
-  if (requestedLocalPart && !/^[a-z0-9](?:[a-z0-9._-]{1,30}[a-z0-9])?$/.test(requestedLocalPart)) {
+  if (requestedLocalPart && !validLocalPart(requestedLocalPart)) {
     return json({ error: "Address must be 3-32 characters using a-z, 0-9, dot, underscore, or hyphen" }, 400);
   }
   if (["abuse", "admin", "mailer-daemon", "postmaster", "security", "support"].includes(requestedLocalPart)) {
@@ -158,17 +167,21 @@ async function issueChallenge(request: Request, env: Env): Promise<Response> {
   const address = typeof body?.address === "string" ? body.address.trim().toLowerCase() : "";
   if (!address || address.length > 254) return json({ error: "Invalid address" }, 400);
 
-  const mailbox = await env.DB.prepare(
-    "SELECT mailbox_id FROM mailboxes WHERE address = ? AND expires_at > ?",
-  ).bind(address, Date.now()).first<{ mailbox_id: string }>();
-  if (!mailbox) return json({ error: "Inbox not found" }, 404);
-
   const challengeId = randomId();
   const challenge = randomId(32);
   const expiresAt = Date.now() + 60_000;
-  await env.DB.prepare(
-    "INSERT INTO challenges (challenge_id, mailbox_id, challenge_hash, expires_at) VALUES (?, ?, ?, ?)",
-  ).bind(challengeId, mailbox.mailbox_id, await sha256(challenge), expiresAt).run();
+  const mailbox = await env.DB.prepare(
+    "SELECT mailbox_id FROM mailboxes WHERE address = ? AND expires_at > ?",
+  ).bind(address, Date.now()).first<{ mailbox_id: string }>();
+
+  if (mailbox) {
+    await env.DB.prepare(
+      "INSERT INTO challenges (challenge_id, mailbox_id, challenge_hash, expires_at) VALUES (?, ?, ?, ?)",
+    ).bind(challengeId, mailbox.mailbox_id, await sha256(challenge), expiresAt).run();
+  } else {
+    await sha256(challenge);
+  }
+
   return json({ challengeId, challenge, expiresAt });
 }
 
@@ -371,7 +384,7 @@ async function receiveEmail(message: ForwardableEmailMessage, env: Env): Promise
     ? mailbox.expires_at
     : Math.min(mailbox.expires_at, now + mailbox.retention_seconds * 1000);
   const messageId = randomId();
-  const objectKey = `${mailbox.mailbox_id}/${messageId}.json`;
+  const objectKey = `objects/${randomId(24)}.json`;
   await env.MAIL.put(objectKey, encrypted, { httpMetadata: { contentType: "application/json" } });
   try {
     await env.DB.prepare(
@@ -385,15 +398,19 @@ async function receiveEmail(message: ForwardableEmailMessage, env: Env): Promise
 
 async function cleanup(env: Env): Promise<void> {
   const now = Date.now();
-  const expired = await env.DB.prepare(
-    "SELECT message_id, object_key FROM messages WHERE expires_at <= ? LIMIT 100",
-  ).bind(now).all<Pick<MessageRow, "message_id" | "object_key">>();
-  if (expired.results.length) {
+  for (let batch = 0; batch < CLEANUP_MAX_BATCHES; batch += 1) {
+    const expired = await env.DB.prepare(
+      "SELECT message_id, object_key FROM messages WHERE expires_at <= ? LIMIT ?",
+    ).bind(now, CLEANUP_BATCH_SIZE).all<Pick<MessageRow, "message_id" | "object_key">>();
+    if (!expired.results.length) break;
+
     await env.MAIL.delete(expired.results.map((message) => message.object_key));
     const placeholders = expired.results.map(() => "?").join(",");
     await env.DB.prepare(`DELETE FROM messages WHERE message_id IN (${placeholders})`)
       .bind(...expired.results.map((message) => message.message_id)).run();
+    if (expired.results.length < CLEANUP_BATCH_SIZE) break;
   }
+
   await env.DB.batch([
     env.DB.prepare("DELETE FROM challenges WHERE expires_at <= ?").bind(now),
     env.DB.prepare("DELETE FROM sessions WHERE expires_at <= ?").bind(now),
