@@ -10,6 +10,8 @@ import { argon2id } from "hash-wasm";
 const $ = (selector) => document.querySelector(selector);
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
+const RECOVERY_MAX_CHARS = 64 * 1024;
+const RECOVERY_KDF = Object.freeze({ memorySize: 65536, iterations: 3, parallelism: 1 });
 let credentials = null;
 let sessionToken = null;
 let language = localStorage.getItem("mailday-language") || (navigator.language.startsWith("ja") ? "ja" : "en");
@@ -19,7 +21,7 @@ const translations = {
     hero: "メールの中身は、<br><i>あなただけのもの。</i>", lead: "受信した瞬間に暗号化し、復号はこの端末だけで行います。運営者にも本文を読むための鍵はありません。",
     addressLabel: "CUSTOM ADDRESS（任意）", expiryLabel: "有効期限", oneHour: "1時間", oneDay: "1日", oneWeek: "1週間", forever: "永久",
     encryptionLabel: "暗号化の強さ", none: "なし", noneHelp: "高速。運営者からも本文を読めます", standard: "標準", standardHelp: "X25519 + XChaCha20。推奨設定", strong: "強力", strongHelp: "X-Wing耐量子ハイブリッド暗号",
-    passwordLabel: "RECOVERY PASSPHRASE", passwordHelp: "強力モードの秘密鍵をArgon2idで保護します。パスフレーズはサーバーへ送信されません。", importPasswordLabel: "PASSPHRASE（強力モードのみ）", passwordRequired: "12文字以上のパスフレーズを設定してください", wrongPassword: "パスフレーズが違うか、Recovery Keyが壊れています",
+    passwordLabel: "RECOVERY PASSPHRASE", passwordHelp: "暗号化Inboxの秘密鍵をArgon2idで保護します。パスフレーズはサーバーへ送信されません。", importPasswordLabel: "PASSPHRASE", passwordRequired: "12文字以上のパスフレーズを設定してください", wrongPassword: "パスフレーズが違うか、Recovery Keyが壊れています",
     noneWarning: "「なし」ではメール本文が平文で保存され、zero-accessではなくなります。", create: "この設定で Inbox を作る", import: "Recovery Key で既存Inboxを開く", restore: "Inbox を復元",
     identityTitle: "アカウントを作らない", identityText: "ユーザーテーブルを持たず、Inbox 同士も関連付けません。", storageTitle: "暗号文だけを保存", storageText: "標準・強力モードではraw MIME全体を入口で暗号化します。", retentionTitle: "残す期間を選べる", retentionText: "1時間から永久まで。期限後はメールとInboxを削除します。",
     saveRecovery: "Recovery Key を保管", recoveryHelp: "別端末で Inbox を開く唯一の鍵です。再発行はできません。", copyRecovery: "Recovery Key をコピー", saved: "安全な場所に保管しました", openInbox: "Inbox を開く", copyAddress: "アドレスをコピー", close: "閉じる",
@@ -29,7 +31,7 @@ const translations = {
     hero: "Your email belongs<br><i>only to you.</i>", lead: "Messages are encrypted the instant they arrive and decrypted only on this device. We do not have the key needed to read them.",
     addressLabel: "CUSTOM ADDRESS (OPTIONAL)", expiryLabel: "EXPIRY", oneHour: "1 hour", oneDay: "1 day", oneWeek: "1 week", forever: "Forever",
     encryptionLabel: "ENCRYPTION LEVEL", none: "None", noneHelp: "Fast. The operator can read messages", standard: "Standard", standardHelp: "X25519 + XChaCha20. Recommended", strong: "Strong", strongHelp: "X-Wing post-quantum hybrid encryption",
-    passwordLabel: "RECOVERY PASSPHRASE", passwordHelp: "Protects the Strong-mode private key with Argon2id. The passphrase is never sent to the server.", importPasswordLabel: "PASSPHRASE (STRONG MODE ONLY)", passwordRequired: "Use a passphrase of at least 12 characters", wrongPassword: "The passphrase is incorrect or the Recovery Key is damaged",
+    passwordLabel: "RECOVERY PASSPHRASE", passwordHelp: "Protects encrypted inbox private keys with Argon2id. The passphrase is never sent to the server.", importPasswordLabel: "PASSPHRASE", passwordRequired: "Use a passphrase of at least 12 characters", wrongPassword: "The passphrase is incorrect or the Recovery Key is damaged",
     noneWarning: "With None, messages are stored in plaintext and this inbox is not zero-access.", create: "Create inbox with these settings", import: "Open an existing inbox with a Recovery Key", restore: "Restore inbox",
     identityTitle: "No account required", identityText: "There is no users table and inboxes are never linked together.", storageTitle: "Store ciphertext only", storageText: "Standard and Strong encrypt the complete raw MIME at ingress.", retentionTitle: "Choose retention", retentionText: "From one hour to forever. The inbox and mail are removed after expiry.",
     saveRecovery: "Save your Recovery Key", recoveryHelp: "This is the only way to open the inbox on another device. It cannot be reissued.", copyRecovery: "Copy Recovery Key", saved: "I saved it somewhere safe", openInbox: "Open inbox", copyAddress: "Copy address", close: "Close",
@@ -89,46 +91,63 @@ async function makeCredentials(mode) {
   return result;
 }
 
-async function deriveRecoveryKey(password, salt, parameters = {}) {
+function validateRecoveryKdf(kdf) {
+  return kdf?.name === "argon2id"
+    && kdf.memorySize === RECOVERY_KDF.memorySize
+    && kdf.iterations === RECOVERY_KDF.iterations
+    && kdf.parallelism === RECOVERY_KDF.parallelism
+    && typeof kdf.salt === "string";
+}
+
+async function deriveRecoveryKey(password, salt) {
+  if (!(salt instanceof Uint8Array) || salt.length !== 16) throw new Error(t("invalidRecovery"));
   return argon2id({
     password,
     salt,
-    parallelism: parameters.parallelism || 1,
-    iterations: parameters.iterations || 3,
-    memorySize: parameters.memorySize || 65536,
+    parallelism: RECOVERY_KDF.parallelism,
+    iterations: RECOVERY_KDF.iterations,
+    memorySize: RECOVERY_KDF.memorySize,
     hashLength: 32,
     outputType: "binary",
   });
 }
 
 async function exportRecovery(value, password) {
-  if (value.encryptionMode !== "strong") return `md1_${base64url(encoder.encode(JSON.stringify(value)))}`;
+  if (value.encryptionMode === "none") return `md1_${base64url(encoder.encode(JSON.stringify(value)))}`;
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const nonce = crypto.getRandomValues(new Uint8Array(24));
-  const parameters = { memorySize: 65536, iterations: 3, parallelism: 1 };
-  const key = await deriveRecoveryKey(password, salt, parameters);
-  const ciphertext = xchacha20poly1305(key, nonce, encoder.encode("mailday-recovery:argon2id:v2"))
+  const key = await deriveRecoveryKey(password, salt);
+  const ciphertext = xchacha20poly1305(key, nonce, encoder.encode("mailday-recovery:argon2id:v3"))
     .encrypt(encoder.encode(JSON.stringify(value)));
   key.fill(0);
-  return `md2_${base64url(encoder.encode(JSON.stringify({
-    version: 2,
-    kdf: { name: "argon2id", ...parameters, salt: base64url(salt) },
+  return `md3_${base64url(encoder.encode(JSON.stringify({
+    version: 3,
+    kdf: { name: "argon2id", ...RECOVERY_KDF, salt: base64url(salt) },
     nonce: base64url(nonce),
     ciphertext: base64url(ciphertext),
   })))}`;
 }
 
 async function importRecovery(value, password) {
+  if (!value || value.length > RECOVERY_MAX_CHARS) throw new Error(t("invalidRecovery"));
   let parsed;
   if (value.startsWith("md1_")) {
-    parsed = JSON.parse(decoder.decode(unbase64url(value.slice(4))));
-  } else if (value.startsWith("md2_")) {
     try {
+      parsed = JSON.parse(decoder.decode(unbase64url(value.slice(4))));
+    } catch {
+      throw new Error(t("invalidRecovery"));
+    }
+  } else if (value.startsWith("md2_") || value.startsWith("md3_")) {
+    try {
+      const version = value.startsWith("md3_") ? 3 : 2;
       const envelope = JSON.parse(decoder.decode(unbase64url(value.slice(4))));
-      if (envelope.version !== 2 || envelope.kdf?.name !== "argon2id") throw new Error();
-      const key = await deriveRecoveryKey(password, unbase64url(envelope.kdf.salt), envelope.kdf);
-      const plaintext = xchacha20poly1305(key, unbase64url(envelope.nonce), encoder.encode("mailday-recovery:argon2id:v2"))
-        .decrypt(unbase64url(envelope.ciphertext));
+      if (envelope.version !== version || !validateRecoveryKdf(envelope.kdf)) throw new Error();
+      const salt = unbase64url(envelope.kdf.salt);
+      const nonce = unbase64url(envelope.nonce);
+      if (nonce.length !== 24) throw new Error();
+      const key = await deriveRecoveryKey(password, salt);
+      const aad = encoder.encode(`mailday-recovery:argon2id:v${version}`);
+      const plaintext = xchacha20poly1305(key, nonce, aad).decrypt(unbase64url(envelope.ciphertext));
       key.fill(0);
       parsed = JSON.parse(decoder.decode(plaintext));
     } catch {
@@ -157,7 +176,7 @@ async function createInbox(event) {
   try {
     const encryptionMode = new FormData(event.currentTarget).get("encryption");
     const recoveryPassword = $("#strong-password").value;
-    if (encryptionMode === "strong" && recoveryPassword.length < 12) throw new Error(t("passwordRequired"));
+    if (encryptionMode !== "none" && recoveryPassword.length < 12) throw new Error(t("passwordRequired"));
     credentials = await makeCredentials(encryptionMode);
     const created = await api("/api/mailboxes", {
       method: "POST",
@@ -213,7 +232,10 @@ async function decryptEnvelope(envelope) {
     return plaintext;
   }
   if (envelope.version !== 1) throw new Error(t("unsupportedEncryption"));
-  if (envelope.algorithm === "NONE") return unbase64url(envelope.raw);
+  if (envelope.algorithm === "NONE") {
+    if (credentials.encryptionMode !== "none") throw new Error(t("unsupportedEncryption"));
+    return unbase64url(envelope.raw);
+  }
   const curve = envelope.algorithm === "P-384/ECDH+A256GCM" ? "P-384" : envelope.algorithm === "P-256/ECDH+A256GCM" ? "P-256" : null;
   if (!curve || !credentials.encryptionPrivateKey) throw new Error(t("unsupportedEncryption"));
   const privateKey = await crypto.subtle.importKey("jwk", credentials.encryptionPrivateKey, { name: "ECDH", namedCurve: curve }, false, ["deriveKey"]);
@@ -339,9 +361,10 @@ $("#lock").addEventListener("click", () => { credentials = null; sessionToken = 
 $("#language").addEventListener("click", () => { language = language === "ja" ? "en" : "ja"; localStorage.setItem("mailday-language", language); applyLanguage(); if (sessionToken) refresh().catch(() => {}); });
 document.querySelectorAll('input[name="encryption"]').forEach((input) => input.addEventListener("change", () => {
   if (!input.checked) return;
-  $("#encryption-warning").classList.toggle("hidden", input.value !== "none");
-  $("#strong-password-field").classList.toggle("hidden", input.value !== "strong");
-  $("#strong-password").required = input.value === "strong";
+  const encrypted = input.value !== "none";
+  $("#encryption-warning").classList.toggle("hidden", encrypted);
+  $("#strong-password-field").classList.toggle("hidden", !encrypted);
+  $("#strong-password").required = encrypted;
 }));
 setInterval(() => { if (sessionToken && !document.hidden) refresh().catch(() => {}); }, 15_000);
 applyLanguage();
